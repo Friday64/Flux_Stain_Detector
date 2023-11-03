@@ -1,103 +1,82 @@
-###### FLUX STAIN DETECTOR ######
-import cv2
-import json
-import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog, ttk
-import tensorflow as tf
+from tkinter import filedialog
 from PIL import Image, ImageTk
+import numpy as np
+import cv2
+from tflite_runtime.interpreter import Interpreter, load_delegate
 
-# Initialize Tkinter GUI
+# Initialize the TensorFlow Lite interpreter
+model_path = 'C:/Users/Matthew/Desktop/Flux_Models/Flux_Stain_Detector.tflite'
+interpreter = Interpreter(model_path=model_path, experimental_delegates=[load_delegate('libedgetpu.so.1.0')])
+interpreter.allocate_tensors()
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
+def preprocess_image(image_path, img_size=(28, 28)):
+    # Load the image
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    img = cv2.resize(img, img_size)
+    img = img / 255.0  # Normalize the image
+    img = np.expand_dims(img, axis=-1)
+    img = np.expand_dims(img, axis=0).astype(np.float32)
+    return img
+
+def run_inference(image_path):
+    preprocessed_image = preprocess_image(image_path)
+    interpreter.set_tensor(input_details[0]['index'], preprocessed_image)
+    interpreter.invoke()
+    output_data = interpreter.get_tensor(output_details[0]['index'])
+    return output_data
+
+def select_image():
+    global image_path  # Declare 'image_path' as global to modify it
+
+    # Use file dialog to select an image file
+    file_path = filedialog.askopenfilename()
+    if file_path:
+        # Set the global 'image_path' to the selected file path
+        image_path = file_path
+
+        # Load and display the image
+        img = Image.open(file_path)
+        img.thumbnail((200, 200), Image.ANTIALIAS)  # Resize to fit the GUI
+        img = ImageTk.PhotoImage(img)
+        panel.configure(image=img)
+        panel.image = img
+        # Update the window title with the image file name
+        root.title(f"Flux Stain Detector - {file_path}")
+
+
+def on_run_inference():
+    global image_path  # Access the global variable 'image_path'
+
+    if not image_path:
+        result_label.config(text="Please select an image first.")
+        return
+
+    result = run_inference(image_path)
+    # Update the result label based on the inference
+    result_label.config(text=f"Result: {result}")
+
+# Initialize the main window
 root = tk.Tk()
-root.title("Real-time Object Detection")
-root.geometry("1920x1080")
+root.title("Flux Stain Detector")
 
-# Initialize global variables
-model = None
-camera_source = 0
-test_image = None
-settings = {}
+# Add a button to select an image
+btn_select = tk.Button(root, text="Select Image", command=select_image)
+btn_select.pack()
 
-# 1. Load settings from file
-def load_settings():
-    global settings
-    try:
-        with open("settings.json", "r") as f:
-            settings = json.load(f)
-    except FileNotFoundError:
-        settings = {}
+# Add a panel to display the selected image
+panel = tk.Label(root)
+panel.pack()
 
-load_settings()
+# Add a button to run inference
+btn_run = tk.Button(root, text="Run Inference", command=on_run_inference)
+btn_run.pack()
 
-# 2. Function to update performance metrics (replace your own metrics here)
-def update_metrics():
-    # Dummy metrics for example
-    fps = "FPS: 30"
-    confidence = "Confidence: 90%"
-    metrics_label.config(text=f"{fps}, {confidence}")
+# Add a label to show the results
+result_label = tk.Label(root, text="")
+result_label.pack()
 
-# 3. Help button function
-def show_help():
-    messagebox.showinfo("Help", "Your help text here")
-
-# 4. Log window function
-log_text = tk.StringVar()
-log_window = tk.Label(root, textvariable=log_text)
-log_window.pack()
-
-def update_log(message):
-    log_text.set(message)
-
-# 5. Pause/Resume function
-paused = False
-def toggle_pause():
-    global paused
-    paused = not paused
-
-# 6. Snapshot function
-def snapshot():
-    # Your snapshot code here
-
-# 7. Threshold slider
-threshold = tk.DoubleVar()
-threshold_slider = ttk.Scale(root, from_=0, to=1, variable=threshold, orient="horizontal")
-threshold_slider.pack()
-
-# 8. Model Inference (placeholder, integrate your inference code)
-def model_inference():
-    while True:
-        if not paused:
-            # Your inference code here
-
-# Start inference in a separate thread
-inference_thread = threading.Thread(target=model_inference)
-inference_thread.start()
-
-# 9. Error handling (integrate into your code)
-def handle_error(error_message):
-    messagebox.showerror("Error", error_message)
-
-# 10. Clean exit function
-def clean_exit():
-    # Release resources
-    root.quit()
-
-# Adding buttons and features to the GUI
-tk.Button(root, text="Load Settings", command=load_settings).pack()
-tk.Button(root, text="Help", command=show_help).pack()
-tk.Button(root, text="Pause/Resume", command=toggle_pause).pack()
-tk.Button(root, text="Snapshot", command=snapshot).pack()
-tk.Button(root, text="Exit", command=clean_exit).pack()
-
-metrics_label = tk.Label(root, text="")
-metrics_label.pack()
-
-# Initialize your code (camera, model loading, etc.)
-# Your initialization code here
-
-# Main loop
+# Start the GUI event loop
 root.mainloop()
-
-# Save settings to file on exit
-with open("settings.json", "w") as f:
-    json.dump(settings, f)
