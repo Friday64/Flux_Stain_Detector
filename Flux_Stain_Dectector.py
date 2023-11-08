@@ -3,7 +3,6 @@ from tkinter import Frame, Label
 import cv2
 from PIL import Image, ImageTk
 
-
 # Create a window
 window = tk.Tk()
 window.title("Flux Stain Detector")
@@ -30,9 +29,9 @@ def update_video_label(frame):
 # Initialize the USB webcam feed
 camera = cv2.VideoCapture(0)
 
-camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-
+# Set the resolution of the video
+camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 def show_frame():
     # Capture frame-by-frame
@@ -55,4 +54,3 @@ window.mainloop()
 
 # Release the video capture when the GUI is closed
 camera.release()
-
