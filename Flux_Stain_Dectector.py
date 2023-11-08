@@ -5,7 +5,7 @@ from PIL import Image, ImageTk
 import tensorflow as tf
 
 # Load your trained TensorFlow model
-model = tf.keras.models.load_model('path_to_your_model.h5')
+model = tf.keras.models.load_model('C:/Users/Matthew/Desktop/Flux_Models/flux_model.h5')
 
 # Initialize the USB webcam feed
 camera = cv2.VideoCapture(0)
