@@ -30,8 +30,8 @@ def update_video_label(frame):
 camera = cv2.VideoCapture(0)
 
 # Set the resolution of the video
-camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
 def show_frame():
     # Capture frame-by-frame
