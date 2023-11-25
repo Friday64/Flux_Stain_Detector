@@ -22,7 +22,7 @@ camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 # Function to load the TensorFlow model in a separate thread
 def load_model_threaded():
     global model
-    model_path = 'C:/Users/Matthew/Desktop/Flux_Models/flux_model.h5'
+    model_path = 'C:/Users/Matthew/Desktop/Programming/Flux_Models/flux_model.h5'
     model = tf.keras.models.load_model(model_path)
     print("Model loaded successfully.")
 
