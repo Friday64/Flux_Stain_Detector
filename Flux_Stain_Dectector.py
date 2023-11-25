@@ -12,7 +12,7 @@ from PySide6.QtCore import QTimer
 detection_active = False
 model = None
 model_loading_thread = None
-frame_queue = Queue(maxsize=10)
+frame_queue = Queue(maxsize=20)
 
 # Initialize the camera
 camera = cv2.VideoCapture(0)
