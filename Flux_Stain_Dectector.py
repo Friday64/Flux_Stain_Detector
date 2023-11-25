@@ -5,18 +5,37 @@ from PIL import Image, ImageTk
 import tensorflow as tf
 import threading
 import numpy as np
+from queue import Queue, Empty
 
 # Global variables
 detection_active = False
 refresh_rate = int(1000 / 60)  # Refresh rate in milliseconds for 60Hz
 model = None
 model_loading_thread = None
+frame_queue = Queue(maxsize=10)
 
 # Initialize the camera
 camera = cv2.VideoCapture(0)
 camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
 camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
+def camera_capture_thread():
+    global detection_active
+    while detection_active:
+        ret, frame = camera.read()
+        if ret:
+            if not frame_queue.full():
+                frame_queue.put(frame)
+            else:
+                print("Frame buffer is full, dropping frame")
+def detection_thread():
+    global detection_active
+    while detection_active:
+        try:
+            frame = frame_queue.get(timeout=1)  # Adjust timeout as needed
+            # [Detection logic goes here, similar to what was in detect_stains]
+        except Empty:
+            continue
 # Function to load the TensorFlow model in a separate thread
 def load_model_threaded():
     global model
@@ -54,24 +73,22 @@ def on_camera_select(event):
     camera_index = int(camera_dropdown.get())
     threading.Thread(target=switch_camera_source, args=(camera_index,), daemon=True).start()
     
+# Function to start detection
 def start_detection():
-    global detection_active, model_loading_thread
-    # Start model loading in a separate thread if it's not already loaded
-    if model is None and model_loading_thread is None:
-        print("Loading model...")
-        model_loading_thread = threading.Thread(target=load_model_threaded, daemon=True)
-        model_loading_thread.start()
-        # Wait for the model to load before starting detection
-        model_loading_thread.join()
+    global detection_active, model_loading_thread, camera_thread, detection_thread
+    # [Existing code for model loading]
     detection_active = True
-    detect_stains()
+    camera_thread = threading.Thread(target=camera_capture_thread, daemon=True)
+    detection_thread = threading.Thread(target=detection_thread, daemon=True)
+    camera_thread.start()
+    detection_thread.start()
     print("Detection started.")
+
 
 def stop_detection():
     global detection_active
     detection_active = False
-    camera.release()  # Make sure to release the camera when stopping detection
-
+    camera.release()  # release the camera when stopping detection
 def preprocess_frame(frame):
     frame = cv2.resize(frame, (28, 28))
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
