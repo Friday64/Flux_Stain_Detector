@@ -1,9 +1,12 @@
+# Built-in Libraries
 import sys
+import threading
+from queue import Queue, Empty
+
+# Non-built-in Libraries
 import cv2
 import numpy as np
 import tensorflow as tf
-import threading
-from queue import Queue, Empty
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton, QComboBox
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtCore import QTimer
@@ -21,6 +24,9 @@ camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
 # Function to load the TensorFlow model in a separate thread
 def load_model_threaded():
+    """
+    Loads the TensorFlow model in a separate thread.
+    """
     global model
     model_path = 'C:/Users/Matthew/Desktop/Programming/Flux_Models/flux_model.h5'
     model = tf.keras.models.load_model(model_path)
@@ -28,6 +34,9 @@ def load_model_threaded():
 
 # Camera capture thread
 def camera_capture_thread():
+    """
+    Captures frames from the camera and puts them in the frame queue.
+    """
     global detection_active
     while detection_active:
         ret, frame = camera.read()
@@ -39,6 +48,10 @@ def camera_capture_thread():
 
 # Detection thread
 def detection_thread(app):
+    """
+    Processes frames from the frame queue and performs flux stain detection.
+    Updates the GUI with detection results.
+    """
     global detection_active
     while detection_active:
         try:
@@ -64,6 +77,15 @@ def detection_thread(app):
 
 # Preprocess frame
 def preprocess_frame(frame):
+    """
+    Preprocesses the input frame for the TensorFlow model.
+
+    Args:
+        frame (numpy.ndarray): Input image frame.
+
+    Returns:
+        numpy.ndarray: Preprocessed frame ready for model prediction.
+    """
     frame = cv2.resize(frame, (28, 28))
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     frame = frame / 255.0
@@ -72,6 +94,16 @@ def preprocess_frame(frame):
 
 # Process detection results
 def process_detection_results(raw_results, confidence_threshold=0.5):
+    """
+    Processes the raw detection results and determines if a flux stain is detected.
+
+    Args:
+        raw_results (numpy.ndarray): Raw detection results from the model.
+        confidence_threshold (float): Confidence threshold for considering a detection.
+
+    Returns:
+        bool: True if a flux stain is detected, False otherwise.
+    """
     confidence_scores = raw_results[:, 0]
     return np.any(confidence_scores > confidence_threshold)
 
@@ -125,7 +157,17 @@ class FluxStainDetectorApp(QWidget):
         pixmap = QPixmap.fromImage(convert_to_qt_format)
         self.video_label.setPixmap(pixmap.scaled(self.video_label.width(), self.video_label.height()))
 
+# Function to get available cameras using OpenCV
 def get_available_cameras(limit=10):
+    """
+    Returns a list of available camera indices using OpenCV.
+
+    Args:
+        limit (int): Maximum number of cameras to check.
+
+    Returns:
+        list: List of available camera indices.
+    """
     available_cameras = []
     for i in range(limit):
         cap = cv2.VideoCapture(i)
