@@ -4,9 +4,9 @@ import numpy as np
 import tensorflow as tf
 import threading
 from queue import Queue, Empty
-from PySide6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton, QComboBox
-from PySide6.QtGui import QPixmap, QImage
-from PySide6.QtCore import QTimer
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton, QComboBox
+from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtCore import QTimer
 
 # Global variables
 detection_active = False
