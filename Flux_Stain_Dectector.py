@@ -8,9 +8,8 @@ import cv2
 import numpy as np
 import torch  # PyTorch
 from torchvision import transforms
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton, QComboBox
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton
 from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtCore import QTimer
 
 # Global variables
 detection_active = False
@@ -72,12 +71,13 @@ def detection_thread(app):
 
 # Preprocess frame
 def preprocess_frame(frame):
+    # Replace with your model's expected preprocessing
     transform = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.Resize((28, 28)),
+        transforms.Resize((256, 256)),
         transforms.Grayscale(),
         transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))  # Replace with your model's expected normalization
+        transforms.Normalize((0.5,), (0.5,))  # Example normalization
     ])
     frame = transform(frame)
     frame = frame.unsqueeze(0)  # Add batch dimension
@@ -85,14 +85,53 @@ def preprocess_frame(frame):
 
 # Process detection results
 def process_detection_results(raw_results, confidence_threshold=0.5):
-    raw_results = raw_results.cpu().numpy()  # Move data back to CPU for processing
+    # Replace with your model's specific processing
+    raw_results = raw_results.cpu().numpy()  # Move data back to CPU
     confidence_scores = raw_results[:, 0]
     return np.any(confidence_scores > confidence_threshold)
 
-# Remaining code for GUI setup remains the same
+# PyQt5 Application Class
+class FluxStainDetectorApp(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle('Flux Stain Detector')
+        self.setGeometry(300, 300, 350, 250)  # Modify as needed
+        layout = QVBoxLayout()
+        
+        self.video_label = QLabel(self)
+        layout.addWidget(self.video_label)
+
+        self.start_btn = QPushButton('Start Detection', self)
+        self.start_btn.clicked.connect(self.startDetection)
+        layout.addWidget(self.start_btn)
+
+        self.stop_btn = QPushButton('Stop Detection', self)
+        self.stop_btn.clicked.connect(self.stopDetection)
+        layout.addWidget(self.stop_btn)
+
+        self.setLayout(layout)
+
+    def startDetection(self):
+        global detection_active
+        detection_active = True
+        threading.Thread(target=camera_capture_thread).start()
+        threading.Thread(target=detection_thread, args=(self,)).start()
+
+    def stopDetection(self):
+        global detection_active
+        detection_active = False
+
+    def update_video_label(self, frame):
+        qformat = QImage.Format_Indexed8 if len(frame.shape) == 2 else QImage.Format_RGB888
+        out_image = QImage(frame, frame.shape[1], frame.shape[0], frame.strides[0], qformat)
+        out_image = out_image.rgbSwapped()
+        self.video_label.setPixmap(QPixmap.fromImage(out_image))
 
 if __name__ == "__main__":
     app = QApplication([])
     window = FluxStainDetectorApp()
     window.show()
-    sys.exit(app.exec())
+    sys.exit(app.exec_())
