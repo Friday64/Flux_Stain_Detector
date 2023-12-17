@@ -25,7 +25,7 @@ camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 # Function to load the PyTorch model in a separate thread
 def load_model_threaded():
     global model
-    model_path = 'path_to_your_pytorch_model.pth'
+    model_path = 'C:/Users/Matthew/Desktop/Programming/Detect_Flux_Project/Flux_Models'
     model = torch.load(model_path)
     model.eval()  # Set the model to evaluation mode
     model.cuda()  # Move model to GPU
