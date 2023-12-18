@@ -4,28 +4,70 @@ from queue import Queue, Empty
 import cv2
 import numpy as np
 import torch
-from torchvision import transforms
+import torch.onnx
+import tensorrt as trt
+import pycuda.driver as cuda
+import pycuda.autoinit
 import tkinter as tk
 from PIL import Image, ImageTk
+from torchvision import transforms
 
 # Global variables
 detection_active = False
-model = None
-frame_queue = Queue(maxsize=5)  # Reduced queue size for memory efficiency
+frame_queue = Queue(maxsize=5)
 
-# Initialize the camera with reduced resolution for better performance
+# Initialize the camera with 1080p resolution
 camera = cv2.VideoCapture(0)
-camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
-# Load the PyTorch model in a separate thread
-def load_model_threaded():
-    global model
-    model_path = 'C:/Users/Matthew/Desktop/Programming/Detect_Flux_Project/Flux_Models'
-    model = torch.load(model_path)
+# Function to convert PyTorch model to ONNX and then to TensorRT Engine
+def convert_model_to_trt_engine(model, input_size, onnx_file_path, trt_engine_path):
+    # Convert PyTorch model to ONNX
     model.eval()
-    model.to('cuda')  # Ensure model is on GPU
-    print("Model loaded successfully.")
+    dummy_input = torch.randn(1, *input_size).to('cuda')
+    torch.onnx.export(model, dummy_input, onnx_file_path, verbose=True)
+
+    # Convert ONNX model to TensorRT Engine
+    TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
+    builder = trt.Builder(TRT_LOGGER)
+    network = builder.create_network(common.EXPLICIT_BATCH)
+    parser = trt.OnnxParser(network, TRT_LOGGER)
+
+    with open(onnx_file_path, 'rb') as model_file:
+        if not parser.parse(model_file.read()):
+            print('ERROR: Failed to parse the ONNX file.')
+            for error in range(parser.num_errors):
+                print(parser.get_error(error))
+            return None
+
+    config = builder.create_builder_config()
+    config.max_workspace_size = 1 << 30  # 1GB
+    engine = builder.build_engine(network, config)
+
+    with open(trt_engine_path, "wb") as f:
+        f.write(engine.serialize())
+
+    return engine
+
+# TensorRT Inference Class
+class TRTInference:
+    def __init__(self, engine_file_path):
+        self.engine = self.load_engine(engine_file_path)
+        self.context = self.engine.create_execution_context()
+
+    def load_engine(self, engine_file_path):
+        TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
+        with open(engine_file_path, 'rb') as f, trt.Runtime(TRT_LOGGER) as runtime:
+            return runtime.deserialize_cuda_engine(f.read())
+
+    def infer(self, input_data):
+        # Allocate buffers and perform inference
+        # This needs to be implemented based on your model's input and output
+        # ...
+
+# Initialize TensorRT inference
+trt_inference = TRTInference('path_to_your_trt_model.trt')
 
 # Camera capture thread
 def camera_capture_thread():
@@ -48,7 +90,7 @@ def detection_thread(app):
                 preprocessed_frame = preprocess_frame(frame)
                 preprocessed_frame = preprocessed_frame.to('cuda')
                 with torch.no_grad():
-                    raw_detection_results = model(preprocessed_frame)
+                    raw_detection_results = trt_inference.infer(preprocessed_frame)
                 stain_detected = process_detection_results(raw_detection_results)
                 if stain_detected.any():
                     cv2.putText(frame, 'Flux Stain Detected', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
@@ -81,7 +123,7 @@ class FluxStainDetectorApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title('Flux Stain Detector')
-        self.geometry('800x600')  # Adjusted for reduced frame size
+        self.geometry('800x600')
 
         self.video_label = tk.Label(self)
         self.video_label.pack()
@@ -101,7 +143,7 @@ class FluxStainDetectorApp(tk.Tk):
     def stopDetection(self):
         global detection_active
         detection_active = False
-        camera.release()  # Release the camera resource
+        camera.release()
 
     def update_video_label(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
