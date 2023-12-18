@@ -11,13 +11,12 @@ from PIL import Image, ImageTk
 # Global variables
 detection_active = False
 model = None
-model_loading_thread = None
-frame_queue = Queue(maxsize=20)
+frame_queue = Queue(maxsize=5)  # Reduced queue size for memory efficiency
 
-# Initialize the camera
+# Initialize the camera with reduced resolution for better performance
 camera = cv2.VideoCapture(0)
-camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 # Load the PyTorch model in a separate thread
 def load_model_threaded():
@@ -25,7 +24,7 @@ def load_model_threaded():
     model_path = 'C:/Users/Matthew/Desktop/Programming/Detect_Flux_Project/Flux_Models'
     model = torch.load(model_path)
     model.eval()
-    model.cuda()
+    model.to('cuda')  # Ensure model is on GPU
     print("Model loaded successfully.")
 
 # Camera capture thread
@@ -47,7 +46,7 @@ def detection_thread(app):
             frame = frame_queue.get(timeout=1)
             if detection_active and frame is not None:
                 preprocessed_frame = preprocess_frame(frame)
-                preprocessed_frame = preprocessed_frame.cuda()
+                preprocessed_frame = preprocessed_frame.to('cuda')
                 with torch.no_grad():
                     raw_detection_results = model(preprocessed_frame)
                 stain_detected = process_detection_results(raw_detection_results)
@@ -82,7 +81,7 @@ class FluxStainDetectorApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title('Flux Stain Detector')
-        self.geometry('800x600')  # Modify as needed
+        self.geometry('800x600')  # Adjusted for reduced frame size
 
         self.video_label = tk.Label(self)
         self.video_label.pack()
@@ -102,6 +101,7 @@ class FluxStainDetectorApp(tk.Tk):
     def stopDetection(self):
         global detection_active
         detection_active = False
+        camera.release()  # Release the camera resource
 
     def update_video_label(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
