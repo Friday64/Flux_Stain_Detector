@@ -1,13 +1,13 @@
 import sys
 import threading
 from queue import Queue, Empty
+from bs4 import Comment
 import cv2
 import numpy as np
 import torch
 import torch.onnx
 import tensorrt as trt
 import pycuda.driver as cuda
-import pycuda.autoinit
 import tkinter as tk
 from PIL import Image, ImageTk
 from torchvision import transforms
@@ -31,7 +31,7 @@ def convert_model_to_trt_engine(model, input_size, onnx_file_path, trt_engine_pa
     # Convert ONNX model to TensorRT Engine
     TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
     builder = trt.Builder(TRT_LOGGER)
-    network = builder.create_network(common.EXPLICIT_BATCH)
+    network = builder.create_network(Comment.EXPLICIT_BATCH)
     parser = trt.OnnxParser(network, TRT_LOGGER)
 
     with open(onnx_file_path, 'rb') as model_file:
@@ -66,8 +66,8 @@ class TRTInference:
         # This needs to be implemented based on your model's input and output
         # ...
 
-# Initialize TensorRT inference
-trt_inference = TRTInference('path_to_your_trt_model.trt')
+        # Initialize TensorRT inference
+        trt_inference = TRTInference('path_to_your_trt_model.trt')
 
 # Camera capture thread
 def camera_capture_thread():
