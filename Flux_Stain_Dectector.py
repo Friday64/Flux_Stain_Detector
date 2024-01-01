@@ -1,73 +1,29 @@
-import sys
 import threading
 from queue import Queue, Empty
-from bs4 import Comment
 import cv2
-import numpy as np
 import torch
-import torch.onnx
-import tensorrt as trt
-import pycuda.driver as cuda
+from torchvision import transforms
 import tkinter as tk
 from PIL import Image, ImageTk
-from torchvision import transforms
 
 # Global variables
 detection_active = False
 frame_queue = Queue(maxsize=5)
 
-# Initialize the camera with 1080p resolution
+# Model path
+model_path = "path/to/your/model.pth"  # Update with your actual model path
+
+# Initialize the camera with 1080p resolution and 60 FPS
 camera = cv2.VideoCapture(0)
 camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
 camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+camera.set(cv2.CAP_PROP_FPS, 60)  # Attempt to set camera FPS to 60
 
-# Function to convert PyTorch model to ONNX and then to TensorRT Engine
-def convert_model_to_trt_engine(model, input_size, onnx_file_path, trt_engine_path):
-    # Convert PyTorch model to ONNX
-    model.eval()
-    dummy_input = torch.randn(1, *input_size).to('cuda')
-    torch.onnx.export(model, dummy_input, onnx_file_path, verbose=True)
-
-    # Convert ONNX model to TensorRT Engine
-    TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
-    builder = trt.Builder(TRT_LOGGER)
-    network = builder.create_network(Comment.EXPLICIT_BATCH)
-    parser = trt.OnnxParser(network, TRT_LOGGER)
-
-    with open(onnx_file_path, 'rb') as model_file:
-        if not parser.parse(model_file.read()):
-            print('ERROR: Failed to parse the ONNX file.')
-            for error in range(parser.num_errors):
-                print(parser.get_error(error))
-            return None
-
-    config = builder.create_builder_config()
-    config.max_workspace_size = 1 << 30  # 1GB
-    engine = builder.build_engine(network, config)
-
-    with open(trt_engine_path, "wb") as f:
-        f.write(engine.serialize())
-
-    return engine
-
-# TensorRT Inference Class
-class TRTInference:
-    def __init__(self, engine_file_path):
-        self.engine = self.load_engine(engine_file_path)
-        self.context = self.engine.create_execution_context()
-
-    def load_engine(self, engine_file_path):
-        TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
-        with open(engine_file_path, 'rb') as f, trt.Runtime(TRT_LOGGER) as runtime:
-            return runtime.deserialize_cuda_engine(f.read())
-
-    def infer(self, input_data):
-        # Allocate buffers and perform inference
-        # This needs to be implemented based on your model's input and output
-        # ...
-
-        # Initialize TensorRT inference
-        trt_inference = TRTInference('path_to_your_trt_model.trt')
+# Load PyTorch Model
+# Ensure the model is compatible and optimized for Jetson Nano
+model = torch.load(model_path)
+model = model.cuda()  # Move model to GPU if CUDA is available
+model.eval()
 
 # Camera capture thread
 def camera_capture_thread():
@@ -87,36 +43,27 @@ def detection_thread(app):
         try:
             frame = frame_queue.get(timeout=1)
             if detection_active and frame is not None:
-                preprocessed_frame = preprocess_frame(frame)
-                preprocessed_frame = preprocessed_frame.to('cuda')
+                tensor_frame = preprocess_frame(frame)
                 with torch.no_grad():
-                    raw_detection_results = trt_inference.infer(preprocessed_frame)
-                stain_detected = process_detection_results(raw_detection_results)
-                if stain_detected.any():
-                    cv2.putText(frame, 'Flux Stain Detected', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
-                                1, (0, 0, 255), 2, cv2.LINE_AA)
-                app.update_video_label(frame)
+                    detection_results = model(tensor_frame)
+                # Update frame with any overlays or results
+                app.update_video_label(frame)  
         except Empty:
             continue
 
 # Preprocess frame
 def preprocess_frame(frame):
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convert frame to RGB
+    frame = Image.fromarray(frame)
     transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize((256, 256)),
-        transforms.Grayscale(),
+        transforms.Resize((256, 256)),  # Example resize, adjust to your needs
         transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))  # Example normalization
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalization for pre-trained models
     ])
     frame = transform(frame)
     frame = frame.unsqueeze(0)  # Add batch dimension
+    frame = frame.cuda()  # Move to GPU if CUDA is available
     return frame
-
-# Process detection results
-def process_detection_results(raw_results, confidence_threshold=0.5):
-    raw_results = raw_results.cpu().numpy()  # Move data back to CPU
-    confidence_scores = raw_results[:, 0]
-    return np.any(confidence_scores > confidence_threshold)
 
 # Tkinter Application Class
 class FluxStainDetectorApp(tk.Tk):
