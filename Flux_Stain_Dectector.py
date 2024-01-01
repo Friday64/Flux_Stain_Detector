@@ -1,10 +1,10 @@
 import threading
 from queue import Queue, Empty
 import cv2
-import torch
-from torchvision import transforms
-import tkinter as tk
-from PIL import Image, ImageTk
+import torch # Import PyTorch
+from torchvision import transforms # Import PyTorch transforms
+import tkinter as tk # Import Tkinter for GUI
+from PIL import Image, ImageTk # Import Pillow for image processing
 
 # Global variables
 detection_active = False
