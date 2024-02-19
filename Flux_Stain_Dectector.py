@@ -1,4 +1,4 @@
-import tensorflow as tf
+# Flux_Stain_Dectector.py
 from tflite_runtime.interpreter import Interpreter
 import cv2
 import numpy as np
@@ -9,7 +9,7 @@ from PIL import Image, ImageTk
 detection_active = False
 
 # Model path
-model_path = "path/to/your/model.tflite"  # Update with your actual TensorFlow Lite model path
+model_path = ""  # Update with your actual TensorFlow Lite model path
 
 # Load TFLite model and allocate tensors
 try:
