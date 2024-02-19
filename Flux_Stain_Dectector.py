@@ -7,28 +7,6 @@ import numpy as np
 import tkinter as tk
 from PIL import Image, ImageTk
 
-def convert_model_to_tflite(model_path, output_path):
-    """
-    Convert a TensorFlow model to a TensorFlow Lite model.
-
-    :param model_path: Path to the original TensorFlow model.
-    :param output_path: Path where the TensorFlow Lite model will be saved.
-    """
-    try:
-        model = tf.keras.models.load_model(model_path)
-        converter = tf.lite.TFLiteConverter.from_keras_model(model)
-        converter.optimizations = [tf.lite.Optimize.DEFAULT]
-        # Ensure model is compatible with Coral (e.g., quantization)
-        converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
-        converter.inference_input_type = tf.uint8
-        converter.inference_output_type = tf.uint8
-        tflite_model = converter.convert()
-        with open(output_path, 'wb') as f:
-            f.write(tflite_model)
-        print(f"Model converted and saved to {output_path}")
-    except Exception as e:
-        print(f"Error during model conversion: {e}")
-
 # Global variables
 detection_active = False
 frame_queue = Queue(maxsize=5)
