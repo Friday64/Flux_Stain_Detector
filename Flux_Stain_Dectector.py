@@ -104,7 +104,4 @@ class FluxStainDetectorApp(tk.Tk):
         self.video_label.imgtk = imgtk
         self.video_label.configure(image=imgtk)
 
-# Example usage of the conversion function
-# Note: Uncomment the following lines to convert a model before using it in the application.
-# original_model_path = 'path/to/your/original/tensorflow/model'
-# tflite_output_path = '
+
