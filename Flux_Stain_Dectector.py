@@ -1,5 +1,13 @@
+<<<<<<< Updated upstream
 # Flux_Stain_Dectector.py
 from tflite_runtime.interpreter import Interpreter
+=======
+# Importing TensorFlow and TensorFlow Lite modules
+import tensorflow as tf
+from tensorflow.lite.python.interpreter import load_delegate
+import threading
+from queue import Queue, Empty
+>>>>>>> Stashed changes
 import cv2
 import numpy as np
 import tkinter as tk
@@ -9,9 +17,13 @@ from PIL import Image, ImageTk
 detection_active = False
 
 # Model path
+<<<<<<< Updated upstream
 model_path = ""  # Update with your actual TensorFlow Lite model path
+=======
+model_path = "C:/Users/Matthew/Desktop/Programming/Detect_Flux_Project/FLux_Models/flux_model_tf/saved_model.pb"  # Update with your actual TensorFlow model path
+>>>>>>> Stashed changes
 
-# Load TFLite model and allocate tensors
+# Load TensorFlow model and allocate tensors
 try:
     interpreter = Interpreter(model_path=model_path)
     interpreter.allocate_tensors()
